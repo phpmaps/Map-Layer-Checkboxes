@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+
+<html>
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <meta content="initial-scale=1, maximum-scale=1,user-scalable=no" name=
+    "viewport">
+
+    <title>Dynamic Map Service Layer</title>
+    <link href="http://js.arcgis.com/3.7/js/dojo/dijit/themes/claro/claro.css"
+    rel="stylesheet">
+    <link href="http://js.arcgis.com/3.7/js/esri/css/esri.css" rel=
+    "stylesheet">
+    <style>
+    html,
+        body,
+        #map {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+        }
+    </style>
+    <script src="http://js.arcgis.com/3.7/"></script>
+    <script>
+
+        require([
+                 "dojo/dom",
+                 "esri/domUtils",
+                 "dojo/query",
+                 "dojo/dom-construct",
+                 "dijit/form/CheckBox",
+                 "dojo/parser",
+                 "dojo/_base/array",
+                 "esri/map",
+                 "esri/geometry/Extent",
+                 "esri/layers/FeatureLayer",
+                 "dijit/registry",
+                 "esri/request",
+                 "esri/config",
+                 "dojo/_base/lang",
+                 "dojo/domReady!"
+               ], function (
+                 dom, esriDom, query, domConstruct, Checkbox, parser, array, Map, Extent, FeatureLayer, registry, esriRequest, esriConfig, lang
+               ) {
+            
+                 esriConfig.defaults.io.proxyUrl = "../proxy.php";
+                 
+                 var checkboxarea = dom.byId("checkbox-area");
+                 
+                 var legendLayer;
+                 
+                 var mapLayers = [];
+
+                 var myextent = new Extent({
+                   "xmin": -9275766.05471847,
+                   "ymin": 5240519.01083093,
+                   "xmax": -9274920.267617961,
+                   "ymax": 5254509.739118495,
+                   "spatialReference": {
+                     "wkid": 3857
+                   }
+                 });
+            
+                 map = new Map("map", {
+                   extent: myextent,
+                   zoom: 16,
+                   basemap: "gray"
+                 });
+
+                 
+                 var layers = [
+                               {
+                                   "id": 0,
+                                   "name": "TaxParcelForeclosure",
+                                   "parentLayerId": -1,
+                                   "defaultVisibility": true,
+                                   "subLayerIds": null,
+                                   "minScale": 0,
+                                   "maxScale": 0
+                               },
+                               {
+                                   "id": 1,
+                                   "name": "TaxParcelSale",
+                                   "parentLayerId": -1,
+                                   "defaultVisibility": true,
+                                   "subLayerIds": null,
+                                   "minScale": 0,
+                                   "maxScale": 0
+                               },
+                               {
+                                   "id": 2,
+                                   "name": "TaxParcelAppeal",
+                                   "parentLayerId": -1,
+                                   "defaultVisibility": true,
+                                   "subLayerIds": null,
+                                   "minScale": 0,
+                                   "maxScale": 0
+                               },
+                               {
+                                   "id": 3,
+                                   "name": "Parcel Characteristics",
+                                   "parentLayerId": -1,
+                                   "defaultVisibility": true,
+                                   "subLayerIds": null,
+                                   "minScale": 0,
+                                   "maxScale": 0
+                               },
+                               {
+                                   "id": 4,
+                                   "name": "TaxParcelNeighborhood",
+                                   "parentLayerId": -1,
+                                   "defaultVisibility": true,
+                                   "subLayerIds": null,
+                                   "minScale": 0,
+                                   "maxScale": 0
+                               }
+                           ];
+                 
+                 map.on("layers-add-result", setupUICheckboxes);
+                 
+                 for(i = 0; i < layers.length; i++)
+                 {
+                     var layer = new FeatureLayer("http://tryitlive.arcgis.com/arcgis/rest/services/AssessmentOperations/MapServer/" + i, {
+                         "id": i + "_" + layers[i].name,
+                         "name": layers[i].name,
+                         "mode": FeatureLayer.MODE_ONDEMAND,
+                         "outField": "*"
+                       });
+                     
+                     mapLayers.push(layer);
+                 }
+                 
+                 map.addLayers(mapLayers);
+            
+                 function setupUICheckboxes(evt) {
+                     var layers = evt.layers;
+                     
+                     var legendImages = esriRequest({
+                         url: "http://tryitlive.arcgis.com/arcgis/rest/services/AssessmentOperations/MapServer/Legend?f=json",
+                         handleAs: "json"
+                     });
+                     
+                    legendImages.then(legendImagesSucceeded, legendImagesFailed);
+                    
+                    function legendImagesSucceeded(evt) {
+                        legendLayer = evt.layers;
+                        dojo.forEach(layers, function(layerItem) {
+                           var layer = layerItem.layer;
+                           if (layer.declaredClass != "esri.layers.GraphicLayer") {
+                        	   
+                        	   var checkbox = new Checkbox({
+                                   id: layer.id,
+                                   name: layer.name,
+                                   checked: true,
+                                   onChange: function (e) {
+                                     console.log("The checkbox id is: " + this.id);
+                                     summarizeCheckboxes();
+                                     console.log(this.id);
+                                     var lyr = map.getLayer(this.id)
+                                     console.log("The layer id is: " + lyr.id);
+                                     var visible = lyr.visible ? lyr.hide() : lyr.show();
+                                   }
+                        	   });
+                        	   
+                        	   var div = domConstruct.create("div");
+                        	   
+                        	   var label = domConstruct.create("label", {
+                                   "for": name,
+                                   innerHTML: layer.name
+                                   }
+                        	   );
+                        	   
+                        	   var img = domConstruct.create("img", {
+                        		   "width": legendLayer[layer.layerId].legend[0].width,
+                        		   "heigh": legendLayer[layer.layerId].legend[0].height,
+                        		   "src": "data:" + legendLayer[layer.layerId].legend[0].contentType + ";base64," + legendLayer[layer.layerId].legend[0].imageData
+                        		   }
+                        	   );
+                        	   
+                        	   domConstruct.place(img, div, "first");
+                        	   
+                        	   domConstruct.place(label, div, "last");
+                        	   
+                        	   domConstruct.place(div, checkboxarea, "first");
+                        	   
+                        	   checkbox.placeAt(div, "first");
+                        	   
+                           }
+                           
+                        });
+                        
+                    }
+                    
+                    function legendImagesFailed(evt) {
+                        
+                    	console.log("A problem occured getting the swatches : " + evt);
+                    	
+                    }
+                   
+                   
+                 }
+                   
+                 
+                 function summarizeCheckboxes() { // find dijits that are checked
+                	 var checkedLayers = [];
+                 
+                	 registry.forEach(function(d) {
+                		 if ( d.get("checked") ) {
+                			 var idx = d.get("id");
+                			 var cnt = idx.indexOf("_");
+                			 checkedLayers.push(idx.charAt(cnt - 1));
+               			 }
+                     });
+                	 
+                	 console.log(checkedLayers);
+                 }
+        
+    });
+
+    </script>
+</head>
+
+<body class="claro">
+    <div id="wrapper" style="display:inline;">
+        <div id="checkbox-area" style="width: 18%; float:left;"></div>
+
+        <div id="map" style="width:82%; float:right;"></div>
+    </div>
+</body>
+</html>
